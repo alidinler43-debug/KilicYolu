@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'android-project.zip'
+      - '**.zip'
 
 permissions:
   contents: write
@@ -25,7 +25,12 @@ jobs:
           gradle-version: '8.7'
 
       - name: Projeyi aç
-        run: unzip -o android-project.zip -d build-src
+        run: |
+          Z=$(find . -path ./.git -prune -o -iname '*.zip' -print | head -n 1)
+          if [ -n "$Z" ]; then echo "Bulunan dosya: $Z"; unzip -o "$Z" -d build-src; exit 0; fi
+          S=$(find . -path ./.git -prune -o -name settings.gradle -print | head -n 1)
+          if [ -n "$S" ]; then mkdir -p /tmp/src && cp -r "$(dirname "$S")"/. /tmp/src/ && rm -rf /tmp/src/.git /tmp/src/.github && mv /tmp/src build-src; exit 0; fi
+          echo "Depoda android-project.zip yok. Önce o dosyayı depoya yükle."; exit 1
 
       - name: Three.js kütüphanesini indir
         run: curl -fL -o build-src/app/src/main/assets/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
