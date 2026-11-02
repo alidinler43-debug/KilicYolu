@@ -14,6 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-java@v4
         with:
@@ -25,11 +27,14 @@ jobs:
           gradle-version: '8.7'
 
       - name: Projeyi aç
+        shell: bash
         run: |
-          Z=$(find . -path ./.git -prune -o -iname '*.zip' -print | head -n 1)
-          if [ -n "$Z" ]; then echo "Bulunan dosya: $Z"; unzip -o "$Z" -d build-src; exit 0; fi
-          S=$(find . -path ./.git -prune -o -name settings.gradle -print | head -n 1)
-          if [ -n "$S" ]; then mkdir -p /tmp/src && cp -r "$(dirname "$S")"/. /tmp/src/ && rm -rf /tmp/src/.git /tmp/src/.github && mv /tmp/src build-src; exit 0; fi
+          Z=""; best=-1
+          while IFS= read -r f; do
+            t=$(git log -1 --format=%ct -- "$f"); [ -z "$t" ] && t=0
+            if [ "$t" -ge "$best" ]; then best=$t; Z="$f"; fi
+          done < <(find . -path ./.git -prune -o -iname '*.zip' -print)
+          if [ -n "$Z" ]; then echo "En yeni zip: $Z"; unzip -o "$Z" -d build-src; exit 0; fi
           echo "Depoda android-project.zip yok. Önce o dosyayı depoya yükle."; exit 1
 
       - name: Three.js kütüphanesini indir
@@ -48,3 +53,4 @@ jobs:
           tag_name: v${{ github.run_number }}
           name: Kılıç Yolu ${{ github.run_number }}
           files: KilicYolu-${{ github.run_number }}.apk
+         
