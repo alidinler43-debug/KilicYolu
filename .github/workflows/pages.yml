@@ -1,0 +1,51 @@
+name: Web sürümü yayınla
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '**.zip'
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.dep.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Web dosyalarını hazırla
+        shell: bash
+        run: |
+          Z=""; best=-1
+          while IFS= read -r f; do
+            t=$(git log -1 --format=%ct -- "$f"); [ -z "$t" ] && t=0
+            if [ "$t" -ge "$best" ]; then best=$t; Z="$f"; fi
+          done < <(find . -path ./.git -prune -o -iname '*.zip' -print)
+          if [ -z "$Z" ]; then echo "Depoda android-project.zip yok."; exit 1; fi
+          unzip -o "$Z" -d src
+          mkdir -p site
+          cp -r src/web/* site/
+          curl -fL -o site/three.min.js https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js
+          touch site/.nojekyll
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+      - id: dep
+        uses: actions/deploy-pages@v4
